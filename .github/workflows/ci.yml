@@ -89,6 +89,9 @@ jobs:
       - name: apts list
         run: node --experimental-strip-types bin/apts.ts list
 
+      - name: apts search "strict tsconfig"
+        run: node --experimental-strip-types bin/apts.ts search "strict tsconfig"
+
       - name: apts retrieve ts-npm-zod-starter
         run: node --experimental-strip-types bin/apts.ts retrieve ts-npm-zod-starter
 
