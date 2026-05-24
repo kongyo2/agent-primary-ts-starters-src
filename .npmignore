@@ -1,0 +1,13 @@
+**/*.test.ts
+**/__fixtures__/**
+coverage/
+refs/
+scripts/
+vitest.config.ts
+tsconfig.json
+.oxlintrc.json
+.oxlintignore
+.prettierrc.json
+.prettierignore
+.tsbuildinfo
+CLAUDE.md

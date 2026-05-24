@@ -1,0 +1,9 @@
+node_modules
+dist
+build
+coverage
+*.min.js
+refs
+skills
+src/data
+.tsbuildinfo
