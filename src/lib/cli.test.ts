@@ -264,4 +264,149 @@ describe("runCli", () => {
     expect(out.join("")).toBe("[]");
     __resetEmbedderForTest();
   });
+
+  describe("search flags", () => {
+    it("respects --limit", async () => {
+      const index = await makeIndexAsync();
+      const embedder = createDeterministicEmbedder(16);
+      const { deps, out } = makeDeps(["search", "alpha", "bravo", "--limit", "1"], {
+        embedder,
+        loadIndex: () => index,
+        indexFile: "ignored",
+      });
+      await runCli(deps);
+      const parsed = JSON.parse(out.join("")) as Array<unknown>;
+      expect(parsed).toHaveLength(1);
+    });
+
+    it("respects --threshold by dropping low-similarity results", async () => {
+      const index = await makeIndexAsync();
+      const embedder = createDeterministicEmbedder(16);
+      const { deps, out } = makeDeps(["search", "completely unrelated wxyz", "--threshold", "0.99"], {
+        embedder,
+        loadIndex: () => index,
+        indexFile: "ignored",
+      });
+      await runCli(deps);
+      expect(out.join("")).toBe("[]");
+    });
+
+    it("emits human-readable lines with --format text", async () => {
+      const index = await makeIndexAsync();
+      const embedder = createDeterministicEmbedder(16);
+      const { deps, out } = makeDeps(["search", "alpha", "--format", "text"], {
+        embedder,
+        loadIndex: () => index,
+        indexFile: "ignored",
+      });
+      await runCli(deps);
+      const joined = out.join("\n");
+      expect(joined).toContain("skill-alpha");
+      expect(joined).not.toContain("{");
+    });
+
+    it("emits (no matches) with --format text when nothing scores above threshold", async () => {
+      const index = await makeIndexAsync();
+      const embedder = createDeterministicEmbedder(16);
+      const { deps, out } = makeDeps(["search", "unrelated wxyz", "--format", "text", "--threshold", "0.99"], {
+        embedder,
+        loadIndex: () => index,
+        indexFile: "ignored",
+      });
+      await runCli(deps);
+      expect(out.join("\n")).toContain("(no matches)");
+    });
+
+    it("errors on non-integer --limit", async () => {
+      const { deps, err } = makeDeps(["search", "x", "--limit", "abc"], {
+        embedder: createDeterministicEmbedder(16),
+        loadIndex: () => ({ modelId: "x", vectorDimension: 16, skills: [] }),
+        indexFile: "ignored",
+      });
+      await expect(runCli(deps)).rejects.toThrow(ExitError);
+      expect(err.join("\n")).toContain("--limit");
+    });
+
+    it("errors on negative --limit", async () => {
+      const { deps, err } = makeDeps(["search", "x", "--limit", "-1"], {
+        embedder: createDeterministicEmbedder(16),
+        loadIndex: () => ({ modelId: "x", vectorDimension: 16, skills: [] }),
+        indexFile: "ignored",
+      });
+      await expect(runCli(deps)).rejects.toThrow(ExitError);
+      expect(err.join("\n")).toContain("--limit");
+    });
+
+    it("errors on --threshold outside [0,1]", async () => {
+      const { deps, err } = makeDeps(["search", "x", "--threshold", "1.5"], {
+        embedder: createDeterministicEmbedder(16),
+        loadIndex: () => ({ modelId: "x", vectorDimension: 16, skills: [] }),
+        indexFile: "ignored",
+      });
+      await expect(runCli(deps)).rejects.toThrow(ExitError);
+      expect(err.join("\n")).toContain("--threshold");
+    });
+
+    it("errors on non-numeric --threshold", async () => {
+      const { deps, err } = makeDeps(["search", "x", "--threshold", "xyz"], {
+        embedder: createDeterministicEmbedder(16),
+        loadIndex: () => ({ modelId: "x", vectorDimension: 16, skills: [] }),
+        indexFile: "ignored",
+      });
+      await expect(runCli(deps)).rejects.toThrow(ExitError);
+      expect(err.join("\n")).toContain("--threshold");
+    });
+
+    it("errors on unknown --format value", async () => {
+      const { deps, err } = makeDeps(["search", "x", "--format", "yaml"], {
+        embedder: createDeterministicEmbedder(16),
+        loadIndex: () => ({ modelId: "x", vectorDimension: 16, skills: [] }),
+        indexFile: "ignored",
+      });
+      await expect(runCli(deps)).rejects.toThrow(ExitError);
+      expect(err.join("\n")).toContain("--format");
+    });
+  });
+
+  describe("retrieve --format json", () => {
+    it("emits a JSON array with frontmatter + content", async () => {
+      const { deps, out } = makeDeps(["retrieve", "skill-alpha", "--format", "json"]);
+      await runCli(deps);
+      const parsed = JSON.parse(out.join("")) as Array<{
+        id: string;
+        frontmatter: { name: string };
+        content: string;
+      }>;
+      expect(parsed).toHaveLength(1);
+      expect(parsed[0]?.id).toBe("skill-alpha");
+      expect(parsed[0]?.frontmatter.name).toBe("skill-alpha");
+      expect(parsed[0]?.content).toContain("# Skill Alpha");
+    });
+
+    it("with --format json, errors are still written to stderr and exit code is 1", async () => {
+      const { deps, err, exitCodes } = makeDeps(["retrieve", "skill-alpha,nope", "--format", "json"]);
+      await expect(runCli(deps)).rejects.toThrow(ExitError);
+      expect(err.join("\n")).toContain("Retrieve failed for nope");
+      expect(exitCodes).toEqual([1]);
+    });
+
+    it("errors on unknown --format for retrieve", async () => {
+      const { deps, err } = makeDeps(["retrieve", "skill-alpha", "--format", "xml"]);
+      await expect(runCli(deps)).rejects.toThrow(ExitError);
+      expect(err.join("\n")).toContain("--format");
+    });
+  });
+
+  describe("mcp command", () => {
+    it("delegates to the injected startMcpServer", async () => {
+      let called = false;
+      const { deps } = makeDeps(["mcp"], {
+        startMcpServer: async () => {
+          called = true;
+        },
+      });
+      await runCli(deps);
+      expect(called).toBe(true);
+    });
+  });
 });

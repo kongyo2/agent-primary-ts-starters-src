@@ -1,0 +1,109 @@
+name: Publish to npm
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: "Run npm publish --dry-run only (no actual publish)"
+        type: boolean
+        default: false
+      tag:
+        description: "npm dist-tag to publish under (default: latest)"
+        type: string
+        default: "latest"
+
+concurrency:
+  group: publish-npm
+  cancel-in-progress: false
+
+permissions:
+  contents: write # Needed for the post-publish git tag push.
+
+jobs:
+  publish:
+    name: Publish @kongyo2/apts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: npm
+          registry-url: "https://registry.npmjs.org/"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Preflight (typecheck + lint:strict + format:check + test:coverage)
+        run: npm run preflight
+
+      - name: Read package version
+        id: ver
+        run: |
+          version=$(node -p "require('./package.json').version")
+          echo "version=$version" >> $GITHUB_OUTPUT
+          echo "tag_name=v$version" >> $GITHUB_OUTPUT
+          echo "Publishing version: $version"
+
+      - name: Verify version is not already published
+        run: |
+          set -e
+          if npm view "@kongyo2/apts@${{ steps.ver.outputs.version }}" version > /dev/null 2>&1; then
+            echo "::error::Version ${{ steps.ver.outputs.version }} is already published on npm. Bump the version in package.json before re-running."
+            exit 1
+          fi
+          echo "Version ${{ steps.ver.outputs.version }} is not yet published — proceeding."
+
+      - name: Verify pack contents
+        run: |
+          set -e
+          npm pack --json > pack.json
+          jq -e '.[0].files | map(.path) | any(. == "bin/apts.ts")' pack.json > /dev/null
+          jq -e '.[0].files | map(.path) | any(. == "src/data/skills.index.json.gz")' pack.json > /dev/null
+          jq -e '.[0].files | map(.path) | any(. == "skills/ts-tsconfig-modern-strict-starter/SKILL.md")' pack.json > /dev/null
+          jq -e '.[0].files | map(.path) | all(. != "src/lib/cli.test.ts")' pack.json > /dev/null
+          echo "Pack contents OK"
+
+      - name: npm publish (dry-run)
+        if: ${{ inputs.dry-run == true }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          echo "DRY RUN — no package will be published."
+          npm publish --access public --tag "${{ inputs.tag }}" --dry-run
+
+      - name: npm publish
+        if: ${{ inputs.dry-run != true }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --tag "${{ inputs.tag }}"
+
+      - name: Create and push git tag
+        if: ${{ inputs.dry-run != true }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.ver.outputs.tag_name }}" -m "Release ${{ steps.ver.outputs.tag_name }}"
+          git push origin "${{ steps.ver.outputs.tag_name }}"
+
+      - name: Summary
+        run: |
+          {
+            echo "## Published @kongyo2/apts@${{ steps.ver.outputs.version }}"
+            echo ""
+            echo "- dist-tag: \`${{ inputs.tag }}\`"
+            echo "- dry-run: \`${{ inputs.dry-run }}\`"
+            echo "- npm: https://www.npmjs.com/package/@kongyo2/apts"
+            echo ""
+            echo "Try it:"
+            echo ""
+            echo '```'
+            echo "npx @kongyo2/apts@${{ steps.ver.outputs.version }} search \"strict tsconfig\""
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
