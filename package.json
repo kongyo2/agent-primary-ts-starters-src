@@ -1,16 +1,14 @@
 {
   "name": "@kongyo2/apts",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Agent-primary TypeScript starters skill CLI — search and retrieve agent-friendly skill guides for TypeScript projects.",
   "type": "module",
   "bin": {
-    "apts": "./bin/apts.ts"
+    "apts": "./dist/bin/apts.js"
   },
   "files": [
-    "bin",
-    "src/**/*",
-    "!src/**/*.test.ts",
-    "!src/**/__fixtures__/**",
+    "dist",
+    "src/data",
     "skills",
     "LICENSE",
     "README.md"
@@ -31,8 +29,10 @@
     "test:coverage": "vitest --run --coverage",
     "sync-skills": "node --experimental-strip-types scripts/sync-skills.ts",
     "build:index": "node --experimental-strip-types scripts/build-index.ts",
-    "build": "npm run sync-skills && npm run build:index",
+    "build:js": "tsc -p tsconfig.build.json && node scripts/finalize-bin.mjs",
+    "build": "npm run sync-skills && npm run build:index && npm run build:js",
     "preflight": "npm run typecheck && npm run lint:strict && npm run format:check && npm run test:coverage",
+    "prepack": "npm run build:js",
     "prepublishOnly": "npm run build:index && npm run preflight"
   },
   "dependencies": {
