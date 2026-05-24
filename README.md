@@ -1,8 +1,8 @@
 # @kongyo2/apts
 
-> Agent-Primary TypeScript Starters — a CLI + MCP server that lets coding agents `search` and `retrieve` the [agent-primary-ts-starters](https://github.com/kongyo2/agent-primary-ts-starters) skill guides on demand.
+> Agent-Primary TypeScript Starters — a CLI that lets coding agents `search` and `retrieve` the [agent-primary-ts-starters](https://github.com/kongyo2/agent-primary-ts-starters) skill guides on demand.
 
-`apts` wraps four agent-friendly TypeScript starters (tsconfig, Prettier, Oxlint, Zod) behind a semantic-search interface. Use it as a one-shot CLI, or expose it to your coding agent as an MCP server so it pulls the right guidance into context automatically.
+`apts` wraps four agent-friendly TypeScript starters (tsconfig, Prettier, Oxlint, Zod) behind a semantic-search interface. Use it as a one-shot CLI so coding agents pull the right guidance into context automatically.
 
 ## Quickstart
 
