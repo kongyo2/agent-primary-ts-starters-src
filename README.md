@@ -62,4 +62,4 @@ Print the full catalog as JSON: `{ id, category, description, tokenCount }`.
 
 ## License
 
-Apache-2.0. Skill content under `skills/` is mirrored from [agent-primary-ts-starters](https://github.com/kongyo2/agent-primary-ts-starters).
+MIT. Skill content under `skills/` is mirrored from [agent-primary-ts-starters](https://github.com/kongyo2/agent-primary-ts-starters).
