@@ -119,7 +119,9 @@ jobs:
       - name: Verify expected tarball contents
         run: |
           npm pack --json > pack.json
-          jq -e '.[0].files | map(.path) | any(. == "bin/apts.ts")' pack.json > /dev/null
+          jq -e '.[0].files | map(.path) | any(. == "dist/bin/apts.js")' pack.json > /dev/null
+          jq -e '.[0].files | map(.path) | any(. == "dist/src/lib/cli.js")' pack.json > /dev/null
           jq -e '.[0].files | map(.path) | any(. == "src/data/skills.index.json.gz")' pack.json > /dev/null
           jq -e '.[0].files | map(.path) | any(. == "skills/ts-tsconfig-modern-strict-starter/SKILL.md")' pack.json > /dev/null
           jq -e '.[0].files | map(.path) | all(. != ("src/lib/cli.test.ts"))' pack.json > /dev/null
+          jq -e '.[0].files | map(.path) | all(. != ("bin/apts.ts"))' pack.json > /dev/null
