@@ -4,7 +4,13 @@ import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { writeFileSync } from "node:fs";
 import { runCli } from "./cli.ts";
-import { __resetEmbedderForTest, __setTransformersLoaderForTest, createDeterministicEmbedder } from "./embedder.ts";
+import {
+  __resetEmbedderForTest,
+  __setTransformersLoaderForTest,
+  createDeterministicEmbedder,
+  DEFAULT_MODEL_ID,
+  DEFAULT_VECTOR_DIMENSION,
+} from "./embedder.ts";
 import type { CliDeps } from "./cli.ts";
 import type { SkillIndex } from "../schemas/skill.ts";
 
@@ -12,8 +18,11 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURES_DIR = join(HERE, "__fixtures__", "sample-skills");
 
 class ExitError extends Error {
-  constructor(public readonly code: number) {
+  readonly code: number;
+
+  constructor(code: number) {
     super(`exit ${code}`);
+    this.code = code;
   }
 }
 
@@ -176,15 +185,17 @@ describe("runCli", () => {
 
   it("search falls back to getDefaultEmbedder when no embedder is provided", async () => {
     __resetEmbedderForTest();
-    const detEmbedder = createDeterministicEmbedder(16);
+    // getDefaultEmbedder() reports DEFAULT_VECTOR_DIMENSION, so the stubbed
+    // pipeline and the index have to agree with it or searchSkills rejects.
+    const detEmbedder = createDeterministicEmbedder(DEFAULT_VECTOR_DIMENSION);
     const vector = await detEmbedder.embed("alpha skill");
     __setTransformersLoaderForTest(async () => ({
       pipeline: async () => async () => ({ data: new Float32Array(vector) }),
     }));
 
     const index: SkillIndex = {
-      modelId: "x",
-      vectorDimension: 16,
+      modelId: DEFAULT_MODEL_ID,
+      vectorDimension: DEFAULT_VECTOR_DIMENSION,
       skills: [{ id: "alpha", description: "alpha", category: "t", tokenCount: 1, vector }],
     };
     const { deps, out } = makeDeps(["search", "alpha"], {

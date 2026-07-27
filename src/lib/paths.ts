@@ -15,8 +15,8 @@ function findPackageRoot(start: string): string {
   }
 }
 
-export const PACKAGE_ROOT = findPackageRoot(here);
-export const SKILLS_DIR = join(PACKAGE_ROOT, "skills");
-export const DATA_DIR = join(PACKAGE_ROOT, "src", "data");
-export const INDEX_FILE = join(DATA_DIR, "skills.index.json.gz");
-export const PACKAGE_JSON = join(PACKAGE_ROOT, "package.json");
+export const PACKAGE_ROOT: string = findPackageRoot(here);
+export const SKILLS_DIR: string = join(PACKAGE_ROOT, "skills");
+export const DATA_DIR: string = join(PACKAGE_ROOT, "src", "data");
+export const INDEX_FILE: string = join(DATA_DIR, "skills.index.json.gz");
+export const PACKAGE_JSON: string = join(PACKAGE_ROOT, "package.json");
