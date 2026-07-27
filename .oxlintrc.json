@@ -12,5 +12,14 @@
     "no-await-in-loop": "off",
     "no-underscore-dangle": "off"
   },
+  "overrides": [
+    {
+      // `JSON.parse(...) as T` is the standard way to give a parsed CLI/MCP payload a
+      // shape before asserting on it, and every test file here does it. The rule stays
+      // on for src/ and bin/, where a narrowing assertion is worth arguing about.
+      "files": ["**/*.test.ts"],
+      "rules": { "typescript/no-unsafe-type-assertion": "off" }
+    }
+  ],
   "ignorePatterns": ["node_modules", "dist", "build", "coverage", "*.min.js", "refs", "skills", "src/data"]
 }

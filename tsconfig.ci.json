@@ -1,0 +1,21 @@
+{
+  // Gate config. Every value is restated rather than inherited, because `extends` merges.
+  //
+  // `skipLibCheck` is the one standing-policy value this repo cannot set to `false`.
+  // Verified on TypeScript 7.0.2: the sweep reports 26 errors, all inside third-party
+  // `.d.ts`, none in src/ or bin/ —
+  //   @huggingface/tokenizers   8x TS2834  extensionless relative imports, invalid under `nodenext`
+  //   @huggingface/transformers 8x TS2304 + 1x TS2552  DOM globals (HTMLCanvasElement, ...)
+  //   @huggingface/transformers 2x TS2416  incompatible method overrides in its own class hierarchy
+  //   onnxruntime-common        6x TS2304  DOM globals
+  //   @modelcontextprotocol/sdk 1x TS2304  HeadersInit
+  // The DOM-global errors are not fixable by adding "dom" to `lib` without also letting
+  // this Node-only package typecheck against browser APIs it cannot call at runtime; the
+  // rest are defects in the published packages. Our own use of those dependencies is still
+  // checked — `skipLibCheck` only skips checking their declarations internally.
+  //
+  // Re-test the exception after any dependency bump:
+  //   npm run typecheck:libs
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "incremental": false, "skipLibCheck": true }
+}

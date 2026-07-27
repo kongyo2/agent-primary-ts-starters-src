@@ -17,11 +17,17 @@
     "node": ">=22.6.0"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit",
-    "typecheck:watch": "tsc --noEmit --watch",
+    "typecheck": "tsc --noEmit --pretty false --checkers 4",
+    "typecheck:watch": "tsc --noEmit --watch --pretty false --checkers 4",
+    "typecheck:test": "tsc -p tsconfig.test.json --pretty false --checkers 4",
+    "typecheck:test:ci": "tsc -p tsconfig.test.json --incremental false --pretty false --checkers 4",
+    "typecheck:ci": "tsc -p tsconfig.ci.json --pretty false --checkers 4",
+    "typecheck:libs": "tsc -p tsconfig.ci.json --skipLibCheck false --pretty false --checkers 4",
+    "check:decl": "tsc -p tsconfig.declarations.json --pretty false --checkers 4",
     "lint": "oxlint --format agent",
     "lint:fix": "oxlint --fix",
     "lint:strict": "oxlint --deny-warnings",
+    "lint:types": "oxlint --type-aware --type-check --tsconfig tsconfig.ci.json --deny-warnings",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest --run",
@@ -29,9 +35,10 @@
     "test:coverage": "vitest --run --coverage",
     "sync-skills": "node --experimental-strip-types scripts/sync-skills.ts",
     "build:index": "node --experimental-strip-types scripts/build-index.ts",
-    "build:js": "tsc -p tsconfig.build.json && node scripts/finalize-bin.mjs",
+    "build:js": "tsc --incremental false --pretty false --checkers 4 && node scripts/finalize-bin.mjs",
     "build": "npm run sync-skills && npm run build:index && npm run build:js",
-    "preflight": "npm run typecheck && npm run lint:strict && npm run format:check && npm run test:coverage",
+    "probe": "npm run build:js && node dist/bin/apts.js --version && node dist/bin/apts.js list > /dev/null && node dist/bin/apts.js retrieve ts-tsconfig-modern-strict-starter > /dev/null",
+    "preflight": "npm run typecheck:ci && npm run typecheck:test:ci && npm run check:decl && npm run lint:strict && npm run lint:types && npm run format:check && npm run test:coverage && npm run probe",
     "prepack": "npm run build:js",
     "prepublishOnly": "npm run build:index && npm run preflight"
   },
@@ -41,11 +48,12 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^25.9.1",
+    "@types/node": "^22.20.1",
     "@vitest/coverage-v8": "^4.1.7",
-    "oxlint": "^1.66.0",
+    "oxlint": "^1.75.0",
+    "oxlint-tsgolint": "^7.0.2001",
     "prettier": "^3.8.3",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.7"
   },
   "license": "MIT",

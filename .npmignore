@@ -5,6 +5,9 @@ refs/
 scripts/
 vitest.config.ts
 tsconfig.json
+tsconfig.ci.json
+tsconfig.test.json
+tsconfig.declarations.json
 .oxlintrc.json
 .oxlintignore
 .prettierrc.json
