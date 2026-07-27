@@ -3,6 +3,7 @@
 import { SKILLS_DIR, INDEX_FILE } from "../src/lib/paths.ts";
 import { getDefaultEmbedder, DEFAULT_MODEL_ID } from "../src/lib/embedder.ts";
 import { buildIndex } from "../src/lib/index-builder.ts";
+import { toErrorMessage } from "../src/lib/errors.ts";
 
 async function main(): Promise<void> {
   process.stdout.write(`Building skill index (model=${DEFAULT_MODEL_ID})...\n`);
@@ -17,7 +18,7 @@ async function main(): Promise<void> {
 }
 
 main().catch((err: unknown) => {
-  const message = err instanceof Error ? err.message : String(err);
+  const message = toErrorMessage(err);
   process.stderr.write(`build-index failed: ${message}\n`);
   process.exit(1);
 });

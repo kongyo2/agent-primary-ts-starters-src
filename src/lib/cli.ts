@@ -6,6 +6,7 @@ import { retrieveSkill } from "./retrieve.ts";
 import { searchSkills, DEFAULT_LIMIT, DEFAULT_MIN_SIMILARITY } from "./search.ts";
 import { readIndexFromFile } from "./index-store.ts";
 import { getDefaultEmbedder, type Embedder } from "./embedder.ts";
+import { toErrorMessage } from "./errors.ts";
 import type { SkillIndex, SearchResult } from "../schemas/skill.ts";
 
 export interface CliDeps {
@@ -66,7 +67,8 @@ export async function runCli(deps: CliDeps): Promise<void> {
     return;
   }
 
-  if (values.help === true || positionals.length === 0) {
+  const [command, ...rest] = positionals;
+  if (values.help === true || command === undefined) {
     deps.stdout(USAGE.trimEnd());
     if (values.help !== true) {
       deps.exit(1);
@@ -74,8 +76,6 @@ export async function runCli(deps: CliDeps): Promise<void> {
     return;
   }
 
-  const command = positionals[0] as string;
-  const rest = positionals.slice(1);
   const arg = rest.join(" ");
   const skillsDir = deps.skillsDir ?? SKILLS_DIR;
   const indexFile = deps.indexFile ?? INDEX_FILE;
@@ -94,7 +94,7 @@ export async function runCli(deps: CliDeps): Promise<void> {
     const embedder = deps.embedder ?? (await getDefaultEmbedder());
     const searchOpts = {
       query: arg,
-      index: index.skills,
+      index,
       embedder,
       ...(limit !== null ? { limit } : {}),
       ...(threshold !== null ? { minSimilarity: threshold } : {}),
@@ -143,7 +143,7 @@ export async function runCli(deps: CliDeps): Promise<void> {
           deps.stdout(skill.content);
         }
       } catch (err) {
-        deps.stderr(`Retrieve failed for ${id}: ${(err as Error).message}`);
+        deps.stderr(`Retrieve failed for ${id}: ${toErrorMessage(err)}`);
         hasError = true;
       }
     }
@@ -215,17 +215,17 @@ function parseFormat<T extends readonly string[]>(
   deps: CliDeps,
 ): T[number] {
   if (raw === undefined) return defaultValue;
-  if (!allowed.includes(raw as T[number])) {
+  if (!allowed.includes(raw)) {
     deps.stderr(`--${flag} must be one of: ${allowed.join(", ")} (got "${raw}")`);
     deps.exit(1);
   }
-  return raw as T[number];
+  return raw;
 }
 
 function readPackageVersion(packageJsonPath: string): string {
   const raw: unknown = JSON.parse(readFileSync(packageJsonPath, "utf8"));
   if (typeof raw === "object" && raw !== null && "version" in raw) {
-    const version = (raw as { version: unknown }).version;
+    const version: unknown = raw.version;
     if (typeof version === "string") return version;
   }
   throw new Error(`Cannot read version from ${packageJsonPath}`);

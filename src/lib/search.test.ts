@@ -1,19 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { searchSkills, dotProduct, vectorNorm } from "./search.ts";
 import { createDeterministicEmbedder } from "./embedder.ts";
-import type { IndexedSkill } from "../schemas/skill.ts";
+import type { Embedder } from "./embedder.ts";
+import type { IndexedSkill, SkillIndex } from "../schemas/skill.ts";
 
-function buildIndex(entries: Array<{ id: string; text: string; description?: string }>): IndexedSkill[] {
-  const embedder = createDeterministicEmbedder(32);
-  return Promise.all(
-    entries.map(async (e) => ({
-      id: e.id,
-      description: e.description ?? `description for ${e.id}`,
-      category: "test",
-      tokenCount: e.text.length,
-      vector: await embedder.embed(e.text),
-    })),
-  ) as unknown as IndexedSkill[];
+// Derived from the embedder that produced the vectors so the fixture cannot
+// claim a model or dimension it did not use.
+function asIndex(skills: IndexedSkill[], embedder: Embedder): SkillIndex {
+  return { modelId: embedder.modelId, vectorDimension: embedder.vectorDimension, skills };
 }
 
 describe("dotProduct", () => {
@@ -38,15 +32,34 @@ describe("vectorNorm", () => {
 });
 
 describe("searchSkills", () => {
+  it("rejects an index built with a different embedding dimension", async () => {
+    const embedder = createDeterministicEmbedder(16);
+    // Same model, different dimension — trips the second half of the guard.
+    const index: SkillIndex = { modelId: embedder.modelId, vectorDimension: 384, skills: [] };
+    await expect(searchSkills({ query: "anything", index, embedder })).rejects.toThrow(
+      /index was built with deterministic-hash \(384D\).*deterministic-hash \(16D\)/s,
+    );
+  });
+
+  it("rejects an index built by a different model of the same dimension", async () => {
+    const embedder = createDeterministicEmbedder(16);
+    // Identical dimension, different model — a dimension-only check would have
+    // let this through and ranked against an unrelated coordinate space.
+    const index: SkillIndex = { modelId: "Xenova/all-MiniLM-L6-v2", vectorDimension: 16, skills: [] };
+    await expect(searchSkills({ query: "anything", index, embedder })).rejects.toThrow(
+      /Xenova\/all-MiniLM-L6-v2 \(16D\).*deterministic-hash \(16D\).*meaningless even when the dimensions agree/s,
+    );
+  });
+
   it("returns an empty array for an empty query", async () => {
     const embedder = createDeterministicEmbedder();
-    const results = await searchSkills({ query: "   ", index: [], embedder });
+    const results = await searchSkills({ query: "   ", index: asIndex([], embedder), embedder });
     expect(results).toEqual([]);
   });
 
   it("returns an empty array when the embedder yields the zero vector", async () => {
     const embedder = createDeterministicEmbedder(4);
-    const results = await searchSkills({ query: "---", index: [], embedder });
+    const results = await searchSkills({ query: "---", index: asIndex([], embedder), embedder });
     expect(results).toEqual([]);
   });
 
@@ -71,7 +84,7 @@ describe("searchSkills", () => {
 
     const results = await searchSkills({
       query: "oxlint correctness",
-      index,
+      index: asIndex(index, embedder),
       embedder,
     });
     expect(results[0]?.id).toBe("linting");
@@ -90,7 +103,7 @@ describe("searchSkills", () => {
     ];
     const results = await searchSkills({
       query: "completely different terms",
-      index,
+      index: asIndex(index, embedder),
       embedder,
       minSimilarity: 0.95,
     });
@@ -110,7 +123,7 @@ describe("searchSkills", () => {
     );
     const results = await searchSkills({
       query: "alpha bravo charlie delta keyword",
-      index,
+      index: asIndex(index, embedder),
       embedder,
       limit: 2,
     });
@@ -128,7 +141,7 @@ describe("searchSkills", () => {
         vector: [0, 0, 0, 0],
       },
     ];
-    const results = await searchSkills({ query: "any query", index, embedder });
+    const results = await searchSkills({ query: "any query", index: asIndex(index, embedder), embedder });
     expect(results).toEqual([]);
   });
 
@@ -139,11 +152,8 @@ describe("searchSkills", () => {
     const index: IndexedSkill[] = [
       { id: "exact", description: "match", category: "test", tokenCount: 1, vector: skillVector },
     ];
-    const results = await searchSkills({ query: queryText, index, embedder });
+    const results = await searchSkills({ query: queryText, index: asIndex(index, embedder), embedder });
     expect(results[0]?.similarity).toBeCloseTo(1, 4);
     expect(`${results[0]?.similarity}`.length).toBeLessThanOrEqual(6);
   });
 });
-
-// Silence the unused buildIndex helper from a previous draft.
-void buildIndex;

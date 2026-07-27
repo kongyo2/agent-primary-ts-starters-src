@@ -4,16 +4,32 @@ import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { writeFileSync } from "node:fs";
 import { runCli } from "./cli.ts";
-import { __resetEmbedderForTest, __setTransformersLoaderForTest, createDeterministicEmbedder } from "./embedder.ts";
+import {
+  __resetEmbedderForTest,
+  __setTransformersLoaderForTest,
+  createDeterministicEmbedder,
+  DEFAULT_MODEL_ID,
+  DEFAULT_VECTOR_DIMENSION,
+} from "./embedder.ts";
 import type { CliDeps } from "./cli.ts";
 import type { SkillIndex } from "../schemas/skill.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURES_DIR = join(HERE, "__fixtures__", "sample-skills");
 
+// searchSkills rejects an index whose modelId/dimension disagree with the active
+// embedder, so fixtures derive both from the embedder under test.
+function emptyDetIndex(): SkillIndex {
+  const embedder = createDeterministicEmbedder(16);
+  return { modelId: embedder.modelId, vectorDimension: embedder.vectorDimension, skills: [] };
+}
+
 class ExitError extends Error {
-  constructor(public readonly code: number) {
+  readonly code: number;
+
+  constructor(code: number) {
     super(`exit ${code}`);
+    this.code = code;
   }
 }
 
@@ -56,8 +72,8 @@ function writeFakePackageJson(): string {
 async function makeIndexAsync(): Promise<SkillIndex> {
   const embedder = createDeterministicEmbedder(16);
   return {
-    modelId: "test",
-    vectorDimension: 16,
+    modelId: embedder.modelId,
+    vectorDimension: embedder.vectorDimension,
     skills: [
       {
         id: "skill-alpha",
@@ -157,7 +173,7 @@ describe("runCli", () => {
 
   it("search prints [] for no matches above threshold", async () => {
     const embedder = createDeterministicEmbedder(16);
-    const emptyIndex: SkillIndex = { modelId: "x", vectorDimension: 16, skills: [] };
+    const emptyIndex: SkillIndex = emptyDetIndex();
     const { deps, out } = makeDeps(["search", "anything"], {
       embedder,
       loadIndex: () => emptyIndex,
@@ -176,15 +192,17 @@ describe("runCli", () => {
 
   it("search falls back to getDefaultEmbedder when no embedder is provided", async () => {
     __resetEmbedderForTest();
-    const detEmbedder = createDeterministicEmbedder(16);
+    // getDefaultEmbedder() reports DEFAULT_VECTOR_DIMENSION, so the stubbed
+    // pipeline and the index have to agree with it or searchSkills rejects.
+    const detEmbedder = createDeterministicEmbedder(DEFAULT_VECTOR_DIMENSION);
     const vector = await detEmbedder.embed("alpha skill");
     __setTransformersLoaderForTest(async () => ({
       pipeline: async () => async () => ({ data: new Float32Array(vector) }),
     }));
 
     const index: SkillIndex = {
-      modelId: "x",
-      vectorDimension: 16,
+      modelId: DEFAULT_MODEL_ID,
+      vectorDimension: DEFAULT_VECTOR_DIMENSION,
       skills: [{ id: "alpha", description: "alpha", category: "t", tokenCount: 1, vector }],
     };
     const { deps, out } = makeDeps(["search", "alpha"], {
@@ -320,7 +338,7 @@ describe("runCli", () => {
     it("errors on non-integer --limit", async () => {
       const { deps, err } = makeDeps(["search", "x", "--limit", "abc"], {
         embedder: createDeterministicEmbedder(16),
-        loadIndex: () => ({ modelId: "x", vectorDimension: 16, skills: [] }),
+        loadIndex: () => emptyDetIndex(),
         indexFile: "ignored",
       });
       await expect(runCli(deps)).rejects.toThrow(ExitError);
@@ -330,7 +348,7 @@ describe("runCli", () => {
     it("errors on negative --limit", async () => {
       const { deps, err } = makeDeps(["search", "x", "--limit", "-1"], {
         embedder: createDeterministicEmbedder(16),
-        loadIndex: () => ({ modelId: "x", vectorDimension: 16, skills: [] }),
+        loadIndex: () => emptyDetIndex(),
         indexFile: "ignored",
       });
       await expect(runCli(deps)).rejects.toThrow(ExitError);
@@ -340,7 +358,7 @@ describe("runCli", () => {
     it("errors on --threshold outside [0,1]", async () => {
       const { deps, err } = makeDeps(["search", "x", "--threshold", "1.5"], {
         embedder: createDeterministicEmbedder(16),
-        loadIndex: () => ({ modelId: "x", vectorDimension: 16, skills: [] }),
+        loadIndex: () => emptyDetIndex(),
         indexFile: "ignored",
       });
       await expect(runCli(deps)).rejects.toThrow(ExitError);
@@ -350,7 +368,7 @@ describe("runCli", () => {
     it("errors on non-numeric --threshold", async () => {
       const { deps, err } = makeDeps(["search", "x", "--threshold", "xyz"], {
         embedder: createDeterministicEmbedder(16),
-        loadIndex: () => ({ modelId: "x", vectorDimension: 16, skills: [] }),
+        loadIndex: () => emptyDetIndex(),
         indexFile: "ignored",
       });
       await expect(runCli(deps)).rejects.toThrow(ExitError);
@@ -360,7 +378,7 @@ describe("runCli", () => {
     it("errors on unknown --format value", async () => {
       const { deps, err } = makeDeps(["search", "x", "--format", "yaml"], {
         embedder: createDeterministicEmbedder(16),
-        loadIndex: () => ({ modelId: "x", vectorDimension: 16, skills: [] }),
+        loadIndex: () => emptyDetIndex(),
         indexFile: "ignored",
       });
       await expect(runCli(deps)).rejects.toThrow(ExitError);

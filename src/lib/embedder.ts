@@ -46,13 +46,13 @@ export function createDeterministicEmbedder(dimension = 16): Embedder {
 }
 
 export function hashEmbed(text: string, dimension: number): number[] {
-  const vector = new Array<number>(dimension).fill(0);
   const tokens = text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+  const counts = new Map<number, number>();
   for (const token of tokens) {
-    const h = hash32(token);
-    const idx = h % dimension;
-    vector[idx] = (vector[idx] as number) + 1;
+    const idx = hash32(token) % dimension;
+    counts.set(idx, (counts.get(idx) ?? 0) + 1);
   }
+  const vector = Array.from({ length: dimension }, (_unused, i) => counts.get(i) ?? 0);
   let sumSq = 0;
   for (const v of vector) sumSq += v * v;
   if (sumSq === 0) return vector;

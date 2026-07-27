@@ -7,6 +7,7 @@ import { retrieveSkill } from "./retrieve.ts";
 import { listSkills } from "./list.ts";
 import { getDefaultEmbedder, type Embedder } from "./embedder.ts";
 import { readIndexFromFile } from "./index-store.ts";
+import { toErrorMessage } from "./errors.ts";
 import type { SkillIndex } from "../schemas/skill.ts";
 
 export interface McpServerOptions {
@@ -43,7 +44,11 @@ const LIST_TOOL_DESCRIPTION =
   `List every skill in the agent-primary-ts-starters catalog (id, category, description, tokenCount). ` +
   `Use when 'search_skills' returns nothing relevant, or when the user wants to browse what is available.`;
 
-export const searchSkillsInputSchema = {
+export const searchSkillsInputSchema: {
+  query: z.ZodString;
+  limit: z.ZodOptional<z.ZodNumber>;
+  threshold: z.ZodOptional<z.ZodNumber>;
+} = {
   query: z
     .string()
     .describe(
@@ -60,7 +65,7 @@ export const searchSkillsInputSchema = {
     .describe("Minimum cosine similarity in [0,1] to include. Defaults to 0."),
 };
 
-export const retrieveSkillInputSchema = {
+export const retrieveSkillInputSchema: { skill_id: z.ZodString } = {
   skill_id: z.string().describe("Exact skill ID from a previous search_skills or list_skills response."),
 };
 
@@ -85,7 +90,7 @@ export function buildMcpHandlers(opts: McpServerOptions): ResolvedHandlers {
       const embedder = await getEmbedder();
       const results = await searchSkills({
         query,
-        index: index.skills,
+        index,
         embedder,
         ...(limit !== undefined ? { limit } : {}),
         ...(threshold !== undefined ? { minSimilarity: threshold } : {}),
@@ -101,7 +106,7 @@ export function buildMcpHandlers(opts: McpServerOptions): ResolvedHandlers {
         return { content: [{ type: "text", text: skill.content }] };
       } catch (err) {
         return {
-          content: [{ type: "text", text: (err as Error).message }],
+          content: [{ type: "text", text: toErrorMessage(err) }],
           isError: true,
         };
       }

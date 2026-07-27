@@ -39,17 +39,34 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Typecheck
-        run: npm run typecheck
+      # The gates are listed one per step rather than as a single `npm run preflight`
+      # so a failure names itself in the job log instead of in a wall of output.
+      - name: Typecheck (cache-free gate)
+        run: npm run typecheck:ci
+
+      - name: Typecheck tests, scripts and vitest config (cache-free)
+        run: npm run typecheck:test:ci
+
+      - name: Declaration gate (isolatedDeclarations)
+        run: npm run check:decl
 
       - name: Lint (strict)
         run: npm run lint:strict
+
+      - name: Lint (type-aware)
+        run: npm run lint:types
 
       - name: Format check
         run: npm run format:check
 
       - name: Test with coverage
         run: npm run test:coverage
+
+      # tsc exiting 0 does not prove the emitted JS loads: this builds dist/ and
+      # actually executes it, which is the only check that catches a module
+      # resolution gap between the compiler and Node.
+      - name: Runtime probe (build dist/ and execute it)
+        run: npm run probe
 
       - name: Upload coverage artifact
         if: matrix.node-version == '24.x'

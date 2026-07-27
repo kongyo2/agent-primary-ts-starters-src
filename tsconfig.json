@@ -1,24 +1,19 @@
 {
   "compilerOptions": {
-    "target": "esnext",
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "lib": ["esnext"],
-
-    "noEmit": true,
+    "skipLibCheck": true,
     "incremental": true,
     "tsBuildInfoFile": "./.tsbuildinfo",
-
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": true,
-    "resolveJsonModule": true,
+    "moduleDetection": "force",
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
-    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "useDefineForClassFields": true,
+    "resolveJsonModule": true,
+    "allowJs": false,
 
     "strict": true,
     "noUncheckedIndexedAccess": true,
+    "noPropertyAccessFromIndexSignature": true,
     "exactOptionalPropertyTypes": true,
     "noImplicitOverride": true,
     "noImplicitReturns": true,
@@ -27,9 +22,24 @@
     "noUnusedParameters": true,
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
+    "noUncheckedSideEffectImports": true,
 
-    "types": ["node"]
+    "noErrorTruncation": true,
+
+    "target": "es2024",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "lib": ["es2024"],
+    "types": ["node"],
+    "rootDir": "./",
+    "outDir": "./dist",
+    "sourceMap": true,
+    "inlineSources": true,
+    "noEmitOnError": true,
+
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true
   },
-  "include": ["src/**/*", "bin/**/*", "scripts/**/*"],
-  "exclude": ["node_modules", "refs", "coverage", "skills"]
+  "include": ["src/**/*", "bin/**/*"],
+  "exclude": ["**/*.test.ts", "**/*.spec.ts", "**/__fixtures__/**", "dist"]
 }
