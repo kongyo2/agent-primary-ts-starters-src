@@ -9,11 +9,18 @@ import type { SkillIndex } from "../schemas/skill.ts";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURES_DIR = join(HERE, "__fixtures__", "sample-skills");
 
+// searchSkills rejects an index whose modelId/dimension disagree with the active
+// embedder, so fixtures derive both from the embedder under test.
+function emptyDetIndex(): SkillIndex {
+  const embedder = createDeterministicEmbedder(16);
+  return { modelId: embedder.modelId, vectorDimension: embedder.vectorDimension, skills: [] };
+}
+
 async function buildIndex(): Promise<SkillIndex> {
   const embedder = createDeterministicEmbedder(16);
   return {
-    modelId: "test",
-    vectorDimension: 16,
+    modelId: embedder.modelId,
+    vectorDimension: embedder.vectorDimension,
     skills: [
       {
         id: "skill-alpha",
@@ -100,7 +107,7 @@ describe("createMcpServer", () => {
     const server = createMcpServer({
       skillsDir: FIXTURES_DIR,
       indexFile: "ignored",
-      loadIndex: () => ({ modelId: "x", vectorDimension: 16, skills: [] }),
+      loadIndex: () => emptyDetIndex(),
       getEmbedder: async () => embedder,
       name: "apts-test",
       version: "0.0.0-test",
@@ -114,7 +121,7 @@ describe("createMcpServer", () => {
     const server = createMcpServer({
       skillsDir: FIXTURES_DIR,
       indexFile: "ignored",
-      loadIndex: () => ({ modelId: "x", vectorDimension: 16, skills: [] }),
+      loadIndex: () => emptyDetIndex(),
       getEmbedder: async () => embedder,
     });
     expect(server).toBeDefined();
@@ -146,7 +153,7 @@ describe("startMcpServer", () => {
     await startMcpServer({
       skillsDir: FIXTURES_DIR,
       indexFile: "ignored",
-      loadIndex: () => ({ modelId: "x", vectorDimension: 16, skills: [] }),
+      loadIndex: () => emptyDetIndex(),
       getEmbedder: async () => embedder,
       transport: fakeTransport,
     });

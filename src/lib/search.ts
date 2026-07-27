@@ -9,7 +9,8 @@ export interface SearchOptions {
   /**
    * The whole index, not just `index.skills` — cosine similarity against vectors
    * from a different model is silently meaningless rather than an error, so the
-   * dimension recorded in the index has to reach this function to be checked.
+   * `modelId` and dimension recorded in the index have to reach this function
+   * to be checked.
    */
   index: SkillIndex;
   embedder: Embedder;
@@ -20,10 +21,15 @@ export interface SearchOptions {
 export async function searchSkills(opts: SearchOptions): Promise<SearchResult[]> {
   const { query, index, embedder, limit = DEFAULT_LIMIT, minSimilarity = DEFAULT_MIN_SIMILARITY } = opts;
 
-  if (index.vectorDimension !== embedder.vectorDimension) {
+  // Matching dimensions are not enough: 384 is shared by most sentence-transformer
+  // models, so a same-size swap passes a dimension-only check while cosine
+  // similarity compares unrelated coordinate spaces and returns a confident,
+  // meaningless ranking. The model identity has to agree too.
+  if (index.modelId !== embedder.modelId || index.vectorDimension !== embedder.vectorDimension) {
     throw new Error(
-      `Skill index dimension mismatch: index was built with ${index.modelId} (${index.vectorDimension}D) ` +
+      `Skill index mismatch: index was built with ${index.modelId} (${index.vectorDimension}D) ` +
         `but the active embedder is ${embedder.modelId} (${embedder.vectorDimension}D). ` +
+        `Similarity across different embedding models is meaningless even when the dimensions agree. ` +
         `Rebuild the index with "npm run build:index".`,
     );
   }
